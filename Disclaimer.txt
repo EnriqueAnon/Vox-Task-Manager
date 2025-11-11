@@ -1,0 +1,40 @@
+Task Manager Web App (Phase 2 Deliverable)
+File: index.html
+
+Contents:
+- Mobile-first single-file web app (HTML/CSS/JS) implementing add/delete/update (complete) and persistence via localStorage.
+- Accessibility: semantic elements, aria-labels, focus states.
+- Responsive: flexible units, avoids horizontal scrolling.
+- Testing plan & deployment instructions below (read this comment for next steps).
+
+How to use:
+1. Open this file in a browser (double-click index.html).
+2. Add tasks using the input and "Add" button. Tasks are stored in localStorage and survive page reloads.
+3. Use filters (All, Active, Completed). Tap the task checkbox to mark complete. Use the edit/delete icons to modify.
+
+Deployment (quick):
+- GitHub Pages: create a repo, push this file as index.html to the repo root or the gh-pages branch. Then enable Pages in repository settings.
+- Netlify / Vercel: connect repo; they auto-deploy. Or drag-and-drop the folder containing index.html into Netlify's "Deploy site".
+
+Capacitor (to generate APK):
+1. Build the web-ready bundle (for single file, just copy index.html and assets to a folder called "www").
+2. npm init -y
+3. npm install @capacitor/core @capacitor/cli --save-dev
+4. npx cap init task-manager com.example.taskmanager
+5. copy the web bundle into the Capacitor project: put index.html into <project_root>/www
+6. npx cap add android
+7. npx cap sync
+8. npx cap open android  # opens Android Studio; then build a signed APK via Android Studio
+
+Minimal Testing Plan (use when submitting):
+- Functional: Add Task, Complete Task (toggle), Delete Task, Persistence after reload.
+- Usability: test on two mobile breakpoints (e.g., 360x800 and 412x915). Ensure touch targets >= 48x48px.
+- Performance: verify quick UI updates (<200ms on toggles on modern devices).
+
+TEST REPORT TEMPLATE:
+| Test Case | Steps | Expected Result | Actual Result | Pass/Fail | Notes |
+|---|---|---:|---|---|---|
+| Add Task | Add a new task "Buy milk" | Appears at top of list | | | |
+| Complete Task | Tap checkbox | Text crosses out and filters update | | | |
+| Delete Task | Delete the task | Task removed and localStorage updated | | | |
+| Persistence | Reload page | Tasks persist | | | |

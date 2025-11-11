@@ -1,0 +1,14 @@
+# Dependencies
+node_modules/
+
+# Capacitor/Android build files
+android/
+build/
+
+# macOS/Windows junk
+.DS_Store
+Thumbs.db
+
+# Optional IDE folders
+.vscode/
+.idea/

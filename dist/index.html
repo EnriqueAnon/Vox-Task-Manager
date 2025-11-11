@@ -1,0 +1,264 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Task Manager (PBA Phase 2)</title>
+  <style>
+    :root{
+      --bg: #f6f7fb;
+      --card: #ffffff;
+      --accent: #0066ff;
+      --muted: #6b7280;
+      --danger: #e11d48;
+      --success: #16a34a;
+      font-size: 16px;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%;margin:0;padding:0;background:var(--bg);font-family:Inter, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;color:#0f172a}
+
+    /* Container */
+    .app{max-width:820px;margin:0 auto;padding:1rem;display:flex;flex-direction:column;min-height:100vh}
+
+    /* Header */
+    header{display:flex;align-items:center;justify-content:space-between;gap:1rem}
+    h1{font-size:1.25rem;margin:0}
+    .subtitle{font-size:.875rem;color:var(--muted)}
+
+    /* Card */
+    .card{background:var(--card);border-radius:12px;padding:1rem;margin-top:1rem;box-shadow:0 6px 18px rgba(2,6,23,0.06)}
+
+    /* Form */
+    .task-form{display:flex;gap:.5rem;align-items:center}
+    .task-input{flex:1;min-height:3rem;padding:.75rem;border-radius:8px;border:1px solid #e6e9ee;font-size:1rem}
+    .btn{min-height:3rem;padding:0 .9rem;border-radius:10px;border:0;font-weight:600;font-size:1rem;cursor:pointer}
+    .btn-primary{background:var(--accent);color:white}
+    .btn-ghost{background:transparent;border:1px solid #e6e9ee}
+
+    /* Filters */
+    .filters{display:flex;gap:.5rem;margin-top:.75rem;overflow:auto}
+    .filter-btn{padding:.5rem .6rem;border-radius:999px;border:1px solid transparent;background:transparent;min-width:48px;min-height:48px}
+    .filter-btn[aria-pressed="true"]{background:#eef2ff;border-color:#c7ddff}
+
+    /* Task list */
+    .list{margin-top:1rem;display:flex;flex-direction:column;gap:.5rem}
+    .task{display:flex;align-items:center;gap:.75rem;padding:.6rem;border-radius:10px}
+    .task .content{flex:1;display:flex;flex-direction:column}
+    .task .title{font-size:1rem;margin:0}
+    .task .meta{font-size:.78rem;color:var(--muted)}
+
+    .task.completed .title{text-decoration:line-through;color:var(--muted)}
+
+    /* Buttons */
+    .icon-btn{display:inline-flex;align-items:center;justify-content:center;border-radius:8px;padding:.5rem;min-width:44px;min-height:44px;border:0;background:transparent;cursor:pointer}
+
+    /* Footer */
+    footer{margin-top:auto;padding-top:1rem;color:var(--muted);font-size:.85rem}
+
+    /* Responsive */
+    @media(min-width:640px){h1{font-size:1.5rem}.task-input{min-height:3.5rem}.btn{min-height:3.5rem}}
+
+    /* focus states */
+    .task-input:focus, .btn:focus, .icon-btn:focus{outline:3px solid rgba(0,102,255,0.12);outline-offset:2px}
+  </style>
+</head>
+<body>
+  <div class="app" role="application" aria-label="Task manager application">
+    <header>
+      <div>
+        <h1>Task Manager</h1>
+        <div class="subtitle">Mobile-first, accessible, and persistent</div>
+      </div>
+      <div>
+        <button id="clearAll" class="btn btn-ghost" aria-label="Clear all tasks">Clear</button>
+      </div>
+    </header>
+
+    <section class="card" aria-labelledby="addTaskHeading">
+      <h2 id="addTaskHeading" style="font-size:1rem;margin:0 0 .5rem 0">Add new task</h2>
+      <form id="taskForm" class="task-form" aria-label="Add task form">
+        <input id="taskInput" class="task-input" type="text" placeholder="What do you want to do?" aria-label="Task title" required />
+        <button class="btn btn-primary" type="submit" aria-label="Add task">Add</button>
+      </form>
+
+      <div class="filters" role="tablist" aria-label="Task filters">
+        <button class="filter-btn" data-filter="all" aria-pressed="true">All</button>
+        <button class="filter-btn" data-filter="active" aria-pressed="false">Active</button>
+        <button class="filter-btn" data-filter="completed" aria-pressed="false">Completed</button>
+      </div>
+
+      <div id="taskList" class="list" aria-live="polite"></div>
+    </section>
+
+    <footer>
+      <div>Hints: Tasks are saved locally in your browser. Use "Clear" to remove all tasks.</div>
+    </footer>
+  </div>
+
+  <script>
+    // Simple mobile-first Task Manager
+    // Data model: [{id, title, completed, created}]
+    const STORAGE_KEY = 'pba_task_manager_v1';
+
+    // DOM
+    const taskForm = document.getElementById('taskForm');
+    const taskInput = document.getElementById('taskInput');
+    const taskList = document.getElementById('taskList');
+    const filterBtns = document.querySelectorAll('.filter-btn');
+    const clearAllBtn = document.getElementById('clearAll');
+
+    let tasks = loadTasks();
+    let currentFilter = 'all';
+
+    // Initialize
+    render();
+
+    // Load from localStorage
+    function loadTasks(){
+      try{
+        const raw = localStorage.getItem(STORAGE_KEY);
+        return raw ? JSON.parse(raw) : [];
+      }catch(e){console.error('Failed to parse tasks', e); return []}
+    }
+
+    function saveTasks(){
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks));
+    }
+
+    function addTask(title){
+      const task = {id: cryptoRandomId(), title: title.trim(), completed:false, created: Date.now()};
+      tasks.unshift(task); // new tasks at top
+      saveTasks();
+      render();
+    }
+
+    function deleteTask(id){
+      tasks = tasks.filter(t => t.id !== id);
+      saveTasks();
+      render();
+    }
+
+    function toggleComplete(id){
+      tasks = tasks.map(t => t.id === id ? {...t, completed: !t.completed} : t);
+      saveTasks();
+      render();
+    }
+
+    function editTask(id, newTitle){
+      tasks = tasks.map(t => t.id === id ? {...t, title:newTitle} : t);
+      saveTasks();
+      render();
+    }
+
+    function clearAll(){
+      if(!confirm('Clear ALL tasks? This cannot be undone.')) return;
+      tasks = [];
+      saveTasks();
+      render();
+    }
+
+    function cryptoRandomId(){
+      // Simple random id, ok for client storage
+      return 't_' + Math.random().toString(36).slice(2,9);
+    }
+
+    // Render
+    function render(){
+      // Apply filter
+      let shown = tasks.slice();
+      if(currentFilter === 'active') shown = shown.filter(t => !t.completed);
+      if(currentFilter === 'completed') shown = shown.filter(t => t.completed);
+
+      taskList.innerHTML = '';
+      if(shown.length === 0){
+        const el = document.createElement('div');
+        el.className = 'task';
+        el.innerHTML = '<div class="content"><p class="title" style="color:var(--muted)">No tasks found</p></div>';
+        taskList.appendChild(el);
+        return;
+      }
+
+      shown.forEach(task => {
+        const item = document.createElement('div');
+        item.className = 'task' + (task.completed ? ' completed' : '');
+        item.setAttribute('data-id', task.id);
+
+        item.innerHTML = `
+          <label style="display:inline-flex;align-items:center;gap:.6rem">
+            <input type="checkbox" aria-label="Mark task complete" ${task.completed ? 'checked' : ''} />
+          </label>
+          <div class="content">
+            <p class="title">${escapeHtml(task.title)}</p>
+            <div class="meta">${new Date(task.created).toLocaleString()}</div>
+          </div>
+          <div style="display:flex;gap:.35rem">
+            <button class="icon-btn" data-action="edit" aria-label="Edit task">✏️</button>
+            <button class="icon-btn" data-action="delete" aria-label="Delete task">🗑️</button>
+          </div>
+        `;
+
+        // checkbox handler
+        const checkbox = item.querySelector('input[type=checkbox]');
+        checkbox.addEventListener('change', () => toggleComplete(task.id));
+
+        // edit handler
+        const editBtn = item.querySelector('[data-action=edit]');
+        editBtn.addEventListener('click', () => openEditDialog(task));
+
+        // delete handler
+        const delBtn = item.querySelector('[data-action=delete]');
+        delBtn.addEventListener('click', () => deleteTask(task.id));
+
+        taskList.appendChild(item);
+      });
+    }
+
+    // Escaping
+    function escapeHtml(s){
+      const div = document.createElement('div');
+      div.textContent = s;
+      return div.innerHTML;
+    }
+
+    // Edit flow: simple prompt (keeps file small) — accessible
+    function openEditDialog(task){
+      const newTitle = prompt('Edit task', task.title);
+      if(newTitle === null) return; // cancelled
+      if(newTitle.trim() === ''){ alert('Title cannot be empty'); return; }
+      editTask(task.id, newTitle.trim());
+    }
+
+    // Form submit
+    taskForm.addEventListener('submit', e => {
+      e.preventDefault();
+      const v = taskInput.value;
+      if(!v || !v.trim()) return;
+      addTask(v);
+      taskInput.value = '';
+      taskInput.focus();
+    });
+
+    // Filters
+    filterBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        filterBtns.forEach(b => b.setAttribute('aria-pressed', 'false'));
+        btn.setAttribute('aria-pressed', 'true');
+        currentFilter = btn.dataset.filter;
+        render();
+      });
+    });
+
+    clearAllBtn.addEventListener('click', clearAll);
+
+    // Accessibility: keyboard shortcut to focus input: "n" key
+    window.addEventListener('keydown', (e) => {
+      if(e.key.toLowerCase() === 'n' && document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA'){
+        e.preventDefault(); taskInput.focus();
+      }
+    });
+
+    // Export helper (not required, but useful for quick mobile install)
+    // You can save the page as a PWA with "Add to Home screen" in modern browsers if you add a manifest.
+  </script>
+</body>
+</html>

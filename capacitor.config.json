@@ -1,0 +1,6 @@
+{
+  "appId": "com.vox.app",
+  "appName": "VOX",
+  "webDir": "dist",
+  "bundledWebRuntime": false
+}
